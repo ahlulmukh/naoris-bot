@@ -50,15 +50,15 @@ This bot automates ping to server naoris
    [
      {
        "walletAddress": "your wallet1",
-       "deviceHash": "Hash Device"
+       "deviceHash": [13131131, 13213132, 13131313] // make in array to using multi devices
      },
      {
        "walletAddress": "your wallet1",
-       "deviceHash": "Hash Device"
+       "deviceHash": [13131131, 13213132, 13131313] // make in array to using multi devices
      },
      {
        "walletAddress": "your wallet1",
-       "deviceHash": "Hash Device"
+       "deviceHash": [13131131, 13213132, 13131313] // make in array to using multi devices
      }
    ]
    ```
