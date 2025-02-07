@@ -288,9 +288,7 @@ class naorisProtocol {
             this.uptimeMinutes++;
 
             if (cycleCount % 5 === 0) {
-              logger.log(
-                `{cyan-fg}Service worker wake-up alarm triggered{/cyan-fg}`
-              );
+              logger.log(`{cyan-fg}Trying checking nodes{/cyan-fg}`);
               const activeNodes = await this.checkNodeactivate();
               if (activeNodes && activeNodes["active-nodes"]) {
                 const nodes = activeNodes["active-nodes"].nodes;
