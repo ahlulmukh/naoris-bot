@@ -37,14 +37,15 @@ class naorisProtocol {
       "Sec-Fetch-Mode": "cors",
       "Sec-Fetch-Site": "none",
     };
+    const proxyOptions = this.proxy ? { flag: ["--proxy", this.proxy] } : {};
+
     try {
       const response = await new RequestBuilder()
         .url(`https://naorisprotocol.network/claim-api/auth/generateToken`)
         .method("POST")
         .headers(headers)
-        .flag("--proxy", this.proxy)
         .body(JSON.stringify(sendData))
-        .send();
+        .send({ ...proxyOptions });
       const jsonResponse =
         typeof response.response === "string"
           ? JSON.parse(response.response)
@@ -79,13 +80,16 @@ class naorisProtocol {
         };
 
         while (retries < maxRetries) {
+          const proxyOptions = this.proxy
+            ? { flag: ["--proxy", this.proxy] }
+            : {};
           try {
             const response = await new RequestBuilder()
               .url(`https://naorisprotocol.network/sec-api/api/toggle`)
               .method("POST")
               .headers(headers)
               .body(JSON.stringify(sendData))
-              .send();
+              .send({ ...proxyOptions });
 
             if (
               response.response === "Session started" ||
@@ -122,13 +126,13 @@ class naorisProtocol {
       Referer: "https://naorisprotocol.network/sec-api/api",
       "Content-Type": "application/json",
     };
-
+    const proxyOptions = this.proxy ? { flag: ["--proxy", this.proxy] } : {};
     try {
       const response = await new RequestBuilder()
         .url(`https://naorisprotocol.network/ext-api/api/active-nodes`)
         .method("GET")
         .headers(headers)
-        .send();
+        .send({ ...proxyOptions });
 
       const jsonResponse =
         typeof response.response === "string"
@@ -170,15 +174,14 @@ class naorisProtocol {
       "Sec-Fetch-Mode": "cors",
       "Sec-Fetch-Site": "none",
     };
-
+    const proxyOptions = this.proxy ? { flag: ["--proxy", this.proxy] } : {};
     try {
       const response = await new RequestBuilder()
         .url(`https://naorisprotocol.network/sec-api/api/addWhitelist`)
         .method("POST")
         .headers(headers)
-        .flag("--proxy", this.proxy)
         .body(JSON.stringify(sendData))
-        .send();
+        .send({ ...proxyOptions });
       const jsonResponse =
         typeof response.response === "string"
           ? JSON.parse(response.response)
@@ -211,14 +214,16 @@ class naorisProtocol {
           Referer: "https://naorisprotocol.network/sec-api/api",
           "Content-Type": "application/json",
         };
-
+        const proxyOptions = this.proxy
+          ? { flag: ["--proxy", this.proxy] }
+          : {};
         try {
           const response = await new RequestBuilder()
             .url(`https://naorisprotocol.network/sec-api/api/produce-to-kafka`)
             .method("POST")
             .headers(headers)
             .body(JSON.stringify(sendData))
-            .send();
+            .send({ ...proxyOptions });
 
           const jsonResponse =
             typeof response.response === "string"
@@ -258,7 +263,7 @@ class naorisProtocol {
       "Sec-Fetch-Mode": "cors",
       "Sec-Fetch-Site": "none",
     };
-
+    const proxyOptions = this.proxy ? { flag: ["--proxy", this.proxy] } : {};
     try {
       const response = await new RequestBuilder()
         .url(
@@ -266,9 +271,8 @@ class naorisProtocol {
         )
         .method("POST")
         .headers(headers)
-        .flag("--proxy", this.proxy)
         .body(JSON.stringify(sendData))
-        .send();
+        .send({ ...proxyOptions });
 
       const jsonResponse =
         typeof response.response === "string"
