@@ -13,7 +13,9 @@ class naorisProtocol {
       todayUptime: 0,
     };
     this.uptimeMinutes = 0;
-    this.deviceHash = account.deviceHash;
+    this.deviceHashes = Array.isArray(account.deviceHash)
+      ? account.deviceHash
+      : [account.deviceHash];
     this.toggleState = true;
     this.userAgent = userAgent;
     this.isInstalled = true;
@@ -60,56 +62,57 @@ class naorisProtocol {
   }
 
   async activatedNode(state, maxRetries = 5) {
-    const sendData = {
-      walletAddress: this.account.walletAddress,
-      state: state,
-      deviceHash: this.deviceHash,
-    };
+    await Promise.all(
+      this.deviceHashes.map(async (deviceHash) => {
+        let retries = 0;
+        const sendData = {
+          walletAddress: this.account.walletAddress,
+          state: state,
+          deviceHash: deviceHash,
+        };
 
-    const headers = {
-      "User-Agent": this.userAgent,
-      Referer: "https://naorisprotocol.network/sec-api/api",
-      "Content-Type": "application/json",
-      Accept: "application/json, text/plain, */*",
-      "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
-      Origin: "chrome-extension://cpikalnagknmlfhnilhfelifgbollmmp",
-      "Sec-Fetch-Dest": "empty",
-      "Sec-Fetch-Mode": "cors",
-      "Sec-Fetch-Site": "none",
-    };
+        const headers = {
+          "User-Agent": this.userAgent,
+          Authorization: `Bearer ${this.token}`,
+          Referer: "https://naorisprotocol.network/sec-api/api",
+          "Content-Type": "application/json",
+        };
 
-    let retries = 0;
+        while (retries < maxRetries) {
+          try {
+            const response = await new RequestBuilder()
+              .url(`https://naorisprotocol.network/sec-api/api/toggle`)
+              .method("POST")
+              .headers(headers)
+              .body(JSON.stringify(sendData))
+              .send();
 
-    while (retries < maxRetries) {
-      try {
-        const response = await new RequestBuilder()
-          .url(`https://naorisprotocol.network/sec-api/api/toggle`)
-          .method("POST")
-          .headers(headers)
-          .flag("--proxy", this.proxy)
-          .body(JSON.stringify(sendData))
-          .send();
+            if (
+              response.response === "Session started" ||
+              response.response === "No action needed"
+            ) {
+              logger.log(`{green-fg}Device ${deviceHash} activated{/green-fg}`);
+              return;
+            }
+          } catch (error) {
+            logger.log(
+              `{red-fg}Attempt ${
+                retries + 1
+              } failed for device ${deviceHash}{/red-fg}`
+            );
+          }
 
-        if (
-          (state === "ON" && response.response === "Session started") ||
-          response.response === "No action needed"
-        ) {
-          return response.response;
+          retries++;
+          if (retries < maxRetries) {
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+          }
         }
-      } catch (error) {
-        logger.log(`{red-fg}Attempt ${retries + 1} failed{/red-fg}`);
-      }
 
-      retries++;
-      if (retries < maxRetries) {
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-      }
-    }
-
-    logger.log(
-      `{red-fg}Max retries (${maxRetries}) reached. Unable to activate/deactivate node.{/red-fg}`
+        logger.log(
+          `{red-fg}Failed to activate device ${deviceHash} after ${maxRetries} attempts{/red-fg}`
+        );
+      })
     );
-    return null;
   }
 
   async checkNodeactivate() {
@@ -118,12 +121,6 @@ class naorisProtocol {
       "User-Agent": this.userAgent,
       Referer: "https://naorisprotocol.network/sec-api/api",
       "Content-Type": "application/json",
-      Accept: "application/json, text/plain, */*",
-      "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
-      Origin: "chrome-extension://cpikalnagknmlfhnilhfelifgbollmmp",
-      "Sec-Fetch-Dest": "empty",
-      "Sec-Fetch-Mode": "cors",
-      "Sec-Fetch-Site": "none",
     };
 
     try {
@@ -131,15 +128,30 @@ class naorisProtocol {
         .url(`https://naorisprotocol.network/ext-api/api/active-nodes`)
         .method("GET")
         .headers(headers)
-        .flag("--proxy", this.proxy)
         .send();
+
       const jsonResponse =
         typeof response.response === "string"
           ? JSON.parse(response.response)
           : response.response;
+
+      if (jsonResponse && jsonResponse["active-nodes"]) {
+        const nodes = jsonResponse["active-nodes"].nodes;
+
+        for (const deviceHash of this.deviceHashes) {
+          const node = nodes.find((n) => n.deviceHash === deviceHash);
+
+          if (node && node.startTime === null) {
+            logger.log(
+              `{yellow-fg}Device ${deviceHash} inactive, reactivating...{/yellow-fg}`
+            );
+            await this.activatedNode("ON");
+          }
+        }
+      }
       return jsonResponse;
     } catch (error) {
-      logger.log(`{red-fg}Error checknode account:{/red-fg}`);
+      logger.log(`{red-fg}Error checking node activation{/red-fg}`);
       return null;
     }
   }
@@ -179,53 +191,54 @@ class naorisProtocol {
   }
 
   async sendPingRequest() {
-    logger.log(
-      `{yellow-fg}Send ping for ${this.account.walletAddress}{/yellow-fg}`
-    );
-    const sendData = {
-      topic: "device-heartbeat",
-      inputData: {
-        walletAddress: this.account.walletAddress,
-        deviceHash: this.deviceHash,
-      },
-    };
-
-    const headers = {
-      Authorization: `Bearer ${this.token}`,
-      "User-Agent": this.userAgent,
-      Referer: "https://naorisprotocol.network/sec-api/api",
-      "Content-Type": "application/json",
-      Accept: "application/json, text/plain, */*",
-      "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
-      Origin: "chrome-extension://cpikalnagknmlfhnilhfelifgbollmmp",
-      "Sec-Fetch-Dest": "empty",
-      "Sec-Fetch-Mode": "cors",
-      "Sec-Fetch-Site": "none",
-    };
-
-    try {
-      const response = await new RequestBuilder()
-        .url(`https://naorisprotocol.network/sec-api/api/produce-to-kafka`)
-        .method("POST")
-        .headers(headers)
-        .flag("--proxy", this.proxy)
-        .body(JSON.stringify(sendData))
-        .send();
-      const jsonResponse =
-        typeof response.response === "string"
-          ? JSON.parse(response.response)
-          : response.response;
-      if (jsonResponse.message === "Message production initiated") {
+    await Promise.all(
+      this.deviceHashes.map(async (deviceHash) => {
         logger.log(
-          `{green-fg}Ping account ${this.account.walletAddress}sent succesfully{/green-fg}`
+          `{yellow-fg}Sending ping for ${this.account.walletAddress} (Device: ${deviceHash}){/yellow-fg}`
         );
-        return jsonResponse;
-      }
-      return false;
-    } catch (error) {
-      logger.log(`{red-fg}Error ping account:{/red-fg}`);
-      return null;
-    }
+
+        const sendData = {
+          topic: "device-heartbeat",
+          inputData: {
+            walletAddress: this.account.walletAddress,
+            deviceHash: deviceHash,
+          },
+        };
+
+        const headers = {
+          Authorization: `Bearer ${this.token}`,
+          "User-Agent": this.userAgent,
+          Referer: "https://naorisprotocol.network/sec-api/api",
+          "Content-Type": "application/json",
+        };
+
+        try {
+          const response = await new RequestBuilder()
+            .url(`https://naorisprotocol.network/sec-api/api/produce-to-kafka`)
+            .method("POST")
+            .headers(headers)
+            .body(JSON.stringify(sendData))
+            .send();
+
+          const jsonResponse =
+            typeof response.response === "string"
+              ? JSON.parse(response.response)
+              : response.response;
+
+          if (jsonResponse.message === "Message production initiated") {
+            logger.log(
+              `{green-fg}Ping sent successfully for device ${deviceHash}{/green-fg}`
+            );
+          } else {
+            logger.log(`{red-fg}Ping failed for device ${deviceHash}{/red-fg}`);
+          }
+        } catch (error) {
+          logger.log(
+            `{red-fg}Error sending ping for device ${deviceHash}: ${error.message}{/red-fg}`
+          );
+        }
+      })
+    );
   }
 
   async getWalletAccount() {
@@ -277,50 +290,30 @@ class naorisProtocol {
 
   async processAccount() {
     try {
-      const gaskan = await this.activatedNode("ON");
-      if (gaskan === "Session started" || gaskan === "No action needed") {
-        logger.log(
-          `{green-fg}Device ${this.account.walletAddress} activated successfully{/green-fg}`
-        );
-        await this.sendPingRequest();
-        let cycleCount = 0;
+      await this.activatedNode("ON");
+      logger.log(
+        `{green-fg}Account ${this.account.walletAddress} activated{/green-fg}`
+      );
 
-        this.timer = setInterval(async () => {
-          try {
-            cycleCount++;
-            this.uptimeMinutes++;
-
-            if (cycleCount % 5 === 0) {
-              logger.log(`{cyan-fg}Trying checking nodes{/cyan-fg}`);
-              const activeNodes = await this.checkNodeactivate();
-              if (activeNodes && activeNodes["active-nodes"]) {
-                const nodes = activeNodes["active-nodes"].nodes;
-                const node = nodes.find(
-                  (n) => n.deviceHash === this.deviceHash
-                );
-                if (node && node.startTime === null) {
-                  logger.log(
-                    `{yellow-fg}Node with deviceHash ${this.deviceHash} has null startTime. Activating node...{/yellow-fg}`
-                  );
-                  const tryactive = await this.activatedNode("ON");
-                  if (tryactive === "Session started") {
-                    logger.log(`{green-fg}Node activated again{/green-fg}`);
-                  }
-                }
-              }
-            }
-
-            if (!this.toggleState) {
-              await this.activatedNode("ON");
-            }
-            await this.sendPingRequest();
-          } catch (error) {
-            logger.log(
-              `{red-fg}Error processing account ${this.account.walletAddress}: ${error.message}{/red-fg}`
-            );
+      let cycleCount = 0;
+      this.timer = setInterval(async () => {
+        try {
+          cycleCount++;
+          this.uptimeMinutes++;
+          if (cycleCount % 5 === 0) {
+            logger.log(`{cyan-fg}Checking active nodes{/cyan-fg}`);
+            await this.checkNodeactivate();
           }
-        }, 20000);
-      }
+          await this.sendPingRequest();
+          if (!this.toggleState) {
+            await this.activatedNode("ON");
+          }
+        } catch (error) {
+          logger.log(
+            `{red-fg}Error processing account ${this.account.walletAddress}: ${error.message}{/red-fg}`
+          );
+        }
+      }, 20000);
     } catch (error) {
       logger.log(
         `{red-fg}Error processing account ${this.account.walletAddress}: ${error.message}{/red-fg}`
