@@ -67,7 +67,6 @@ class naorisProtocol {
     };
 
     const headers = {
-      Authorization: `Bearer ${this.token}`,
       "User-Agent": this.userAgent,
       Referer: "https://naorisprotocol.network/sec-api/api",
       "Content-Type": "application/json",
@@ -90,7 +89,11 @@ class naorisProtocol {
           .flag("--proxy", this.proxy)
           .body(JSON.stringify(sendData))
           .send();
-        if (state === "ON" && response.response === "Session started") {
+
+        if (
+          (state === "ON" && response.response === "Session started") ||
+          response.response === "No action needed"
+        ) {
           return response.response;
         }
       } catch (error) {
@@ -275,7 +278,7 @@ class naorisProtocol {
   async processAccount() {
     try {
       const gaskan = await this.activatedNode("ON");
-      if (gaskan === "Session started") {
+      if (gaskan === "Session started" || gaskan === "No action needed") {
         logger.log(
           `{green-fg}Device ${this.account.walletAddress} activated successfully{/green-fg}`
         );
