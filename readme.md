@@ -6,6 +6,7 @@ This bot automates ping to server naoris
 
 - Automatically ping
 - Multi Accounts
+- Multi nodes support.
 - Uses proxies to avoid IP bans.
 - Logs Accounts
 - Can see point each accounts
