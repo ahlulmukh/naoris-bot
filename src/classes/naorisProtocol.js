@@ -63,60 +63,57 @@ class naorisProtocol {
   }
 
   async activatedNode(state, maxRetries = 5) {
-    await Promise.all(
-      this.deviceHashes.map(async (deviceHash) => {
-        let retries = 0;
-        const sendData = {
-          walletAddress: this.account.walletAddress,
-          state: state,
-          deviceHash: deviceHash,
-        };
+    for (const deviceHash of this.deviceHashes) {
+      let retries = 0;
+      const sendData = {
+        walletAddress: this.account.walletAddress,
+        state: state,
+        deviceHash: deviceHash,
+      };
 
-        const headers = {
-          "User-Agent": this.userAgent,
-          Authorization: `Bearer ${this.token}`,
-          Referer: "https://naorisprotocol.network/sec-api/api",
-          "Content-Type": "application/json",
-        };
+      const headers = {
+        "User-Agent": this.userAgent,
+        Authorization: `Bearer ${this.token}`,
+        Referer: "https://naorisprotocol.network/sec-api/api",
+        "Content-Type": "application/json",
+      };
 
-        while (retries < maxRetries) {
-          const proxyOptions = this.proxy
-            ? { flag: ["--proxy", this.proxy] }
-            : {};
-          try {
-            const response = await new RequestBuilder()
-              .url(`https://naorisprotocol.network/sec-api/api/toggle`)
-              .method("POST")
-              .headers(headers)
-              .body(JSON.stringify(sendData))
-              .send({ ...proxyOptions });
+      while (retries < maxRetries) {
+        try {
+          const response = await new RequestBuilder()
+            .url(`https://naorisprotocol.network/sec-api/api/toggle`)
+            .method("POST")
+            .headers(headers)
+            .body(JSON.stringify(sendData))
+            .send();
 
-            if (
-              response.response === "Session started" ||
-              response.response === "No action needed"
-            ) {
-              logger.log(`{green-fg}Device ${deviceHash} activated{/green-fg}`);
-              return;
-            }
-          } catch (error) {
-            logger.log(
-              `{red-fg}Attempt ${
-                retries + 1
-              } failed for device ${deviceHash}{/red-fg}`
-            );
+          if (
+            response.response === "Session started" ||
+            response.response === "No action needed"
+          ) {
+            logger.log(`{green-fg}Device ${deviceHash} activated{/green-fg}`);
+            break;
           }
-
-          retries++;
-          if (retries < maxRetries) {
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-          }
+        } catch (error) {
+          logger.log(
+            `{red-fg}Attempt ${
+              retries + 1
+            } failed for device ${deviceHash}{/red-fg}`
+          );
         }
 
+        retries++;
+        if (retries < maxRetries) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+      }
+
+      if (retries === maxRetries) {
         logger.log(
           `{red-fg}Failed to activate device ${deviceHash} after ${maxRetries} attempts{/red-fg}`
         );
-      })
-    );
+      }
+    }
   }
 
   async checkNodeactivate() {
@@ -194,56 +191,82 @@ class naorisProtocol {
   }
 
   async sendPingRequest() {
-    await Promise.all(
-      this.deviceHashes.map(async (deviceHash) => {
-        logger.log(
-          `{yellow-fg}Sending ping for ${this.account.walletAddress} (Device: ${deviceHash}){/yellow-fg}`
-        );
+    for (const deviceHash of this.deviceHashes) {
+      logger.log(
+        `{yellow-fg}Sending ping for ${this.account.walletAddress} (Device: ${deviceHash}){/yellow-fg}`
+      );
 
-        const sendData = {
-          topic: "device-heartbeat",
-          inputData: {
-            walletAddress: this.account.walletAddress,
-            deviceHash: deviceHash,
-          },
-        };
+      const sendData = {
+        topic: "device-heartbeat",
+        inputData: {
+          walletAddress: this.account.walletAddress,
+          deviceHash: deviceHash,
+        },
+      };
 
-        const headers = {
-          Authorization: `Bearer ${this.token}`,
-          "User-Agent": this.userAgent,
-          Referer: "https://naorisprotocol.network/sec-api/api",
-          "Content-Type": "application/json",
-        };
-        const proxyOptions = this.proxy
-          ? { flag: ["--proxy", this.proxy] }
-          : {};
+      const headers = {
+        Authorization: `Bearer ${this.token}`,
+        "User-Agent": this.userAgent,
+        Referer: "https://naorisprotocol.network/sec-api/api",
+        "Content-Type": "application/json",
+      };
+
+      let retries = 3;
+      while (retries > 0) {
         try {
           const response = await new RequestBuilder()
             .url(`https://naorisprotocol.network/sec-api/api/produce-to-kafka`)
             .method("POST")
             .headers(headers)
             .body(JSON.stringify(sendData))
-            .send({ ...proxyOptions });
+            .send();
 
-          const jsonResponse =
-            typeof response.response === "string"
-              ? JSON.parse(response.response)
-              : response.response;
+          const rawResponse = response.response;
 
-          if (jsonResponse.message === "Message production initiated") {
+          if (
+            typeof rawResponse === "string" &&
+            rawResponse.startsWith("<!DOCTYPE html>")
+          ) {
             logger.log(
-              `{green-fg}Ping sent successfully for device ${deviceHash}{/green-fg}`
+              `{red-fg}Server returned an HTML error page for device ${deviceHash}, retrying...{/red-fg}`
             );
-          } else {
-            logger.log(`{red-fg}Ping failed for device ${deviceHash}{/red-fg}`);
+            retries--;
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+            continue;
+          }
+
+          try {
+            const jsonResponse = JSON.parse(rawResponse);
+
+            if (jsonResponse.message === "Message production initiated") {
+              logger.log(
+                `{green-fg}Ping sent successfully for device ${deviceHash}{/green-fg}`
+              );
+              break;
+            } else {
+              logger.log(
+                `{red-fg}Ping failed for device ${deviceHash}: ${JSON.stringify(
+                  jsonResponse
+                )}{/red-fg}`
+              );
+            }
+          } catch (jsonError) {
+            logger.log(
+              `{red-fg}Invalid JSON response for device ${deviceHash}: ${rawResponse}{/red-fg}`
+            );
           }
         } catch (error) {
           logger.log(
             `{red-fg}Error sending ping for device ${deviceHash}: ${error.message}{/red-fg}`
           );
         }
-      })
-    );
+
+        retries--;
+        if (retries > 0) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+      }
+    }
   }
 
   async getWalletAccount() {
@@ -317,7 +340,7 @@ class naorisProtocol {
             `{red-fg}Error processing account ${this.account.walletAddress}: ${error.message}{/red-fg}`
           );
         }
-      }, 20000);
+      }, 30000);
     } catch (error) {
       logger.log(
         `{red-fg}Error processing account ${this.account.walletAddress}: ${error.message}{/red-fg}`
