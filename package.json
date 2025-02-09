@@ -1,7 +1,7 @@
 {
-  "name": "arichain-autoref",
+  "name": "naoris-bot",
   "version": "1.0.0",
-  "description": "auto reff arichain",
+  "description": "naoris-bot",
   "main": "src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
