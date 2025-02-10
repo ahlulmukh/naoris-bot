@@ -152,7 +152,9 @@ class naorisProtocol {
       }
       return jsonResponse;
     } catch (error) {
-      logger.log(`{red-fg}Error checking node activation{/red-fg}`);
+      logger.log(
+        `{red-fg}Error checking node activation: ${error.message}{/red-fg}`
+      );
       return null;
     }
   }
@@ -286,7 +288,7 @@ class naorisProtocol {
       "Sec-Fetch-Mode": "cors",
       "Sec-Fetch-Site": "none",
     };
-    const proxyOptions = this.proxy ? { flag: ["--proxy", this.proxy] } : {};
+
     try {
       const response = await new RequestBuilder()
         .url(
@@ -295,7 +297,7 @@ class naorisProtocol {
         .method("POST")
         .headers(headers)
         .body(JSON.stringify(sendData))
-        .send({ ...proxyOptions });
+        .send();
 
       const jsonResponse =
         typeof response.response === "string"
