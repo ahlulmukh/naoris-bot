@@ -53,7 +53,7 @@ class naorisProtocol {
       this.token = jsonResponse.token;
       return jsonResponse;
     } catch (error) {
-      logger.log(`{red-fg}Error get token{/red-fg}`);
+      logger.log(`{red-fg}Error get token ${error.message}{/red-fg}`);
       return null;
     }
   }
