@@ -1,6 +1,5 @@
 node_modules
 proxy.txt
-accounts.json
 package-lock.json
 aw.js
 yaw.js
