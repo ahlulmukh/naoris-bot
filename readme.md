@@ -6,10 +6,8 @@ This bot automates ping to server naoris
 
 - Automatically ping
 - Multi Accounts
-- Multi nodes support.
 - Uses proxies to avoid IP bans.
 - Logs Accounts
-- Can see point each accounts
 
 ## Requirements
 
@@ -18,7 +16,6 @@ This bot automates ping to server naoris
 ## Notes
 
 - Make sure to use valid proxies to avoid IP bans.
-- If you just running new account you need rerun bot again (maybe next update i will update it to handle this condition)
 - If you didn't get point just wait.
 
 ## Installation
@@ -45,21 +42,21 @@ This bot automates ping to server naoris
    http://user:pw@host:port
    ```
 
-4. Create accounts.json `nano accounts.json` in the root directory and add your account format. (if you using my bot reff just copy paste accounts.json to this root directory)
+4. Create accounts.json `nano accounts.json` in the root directory and add your account format, you can find in network developer console
 
    ```json
    [
      {
        "walletAddress": "your wallet1",
-       "deviceHash": [13131131, 13213132, 13131313] // make in array to using multi devices
+       "deviceHash": "your_devicehash1"
      },
      {
-       "walletAddress": "your wallet1",
-       "deviceHash": [13131131, 13213132, 13131313] // make in array to using multi devices
+       "walletAddress": "your wallet2",
+       "deviceHash": "your_devicehash2"
      },
      {
-       "walletAddress": "your wallet1",
-       "deviceHash": [13131131, 13213132, 13131313] // make in array to using multi devices
+       "walletAddress": "your wallet3",
+       "deviceHash": "your_devicehash3"
      }
    ]
    ```
