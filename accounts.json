@@ -1,10 +1,6 @@
 [
   {
-    "walletAddress": "youaddress",
-    "deviceHash": [
-      344714242,
-      344796975,
-      344756483
-    ]
+    "walletAddress": "your_wallet_address",
+    "deviceHash": "device_hash"
   }
 ]

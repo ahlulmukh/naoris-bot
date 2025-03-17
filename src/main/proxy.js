@@ -1,23 +1,35 @@
 const { HttpsProxyAgent } = require("https-proxy-agent");
+const { SocksProxyAgent } = require("socks-proxy-agent");
 const fs = require("fs");
 const axios = require("axios");
-const logger = require("../utils/logger");
+const { logMessage } = require("../utils/logger");
 
 let proxyList = [];
 let axiosConfig = {};
 
-function getProxyAgent(proxyUrl, index, total) {
+function getProxyAgent(proxyUrl, index, total, options = {}) {
   try {
     const isSocks = proxyUrl.toLowerCase().startsWith("socks");
+    const agentOptions = {
+      rejectUnauthorized: false,
+      ...options,
+    };
+
     if (isSocks) {
-      const { SocksProxyAgent } = require("socks-proxy-agent");
-      return new SocksProxyAgent(proxyUrl);
+      return new SocksProxyAgent(proxyUrl, agentOptions);
     }
+
     return new HttpsProxyAgent(
-      proxyUrl.startsWith("http") ? proxyUrl : `http://${proxyUrl}`
+      proxyUrl.startsWith("http") ? proxyUrl : `http://${proxyUrl}`,
+      agentOptions
     );
   } catch (error) {
-    logger.log(`{red-fg}Error creating proxy agent: ${error.message}{/red-fg}`);
+    logMessage(
+      index,
+      total,
+      `Error creating proxy agent: ${error.message}`,
+      "error"
+    );
     return null;
   }
 }
@@ -39,12 +51,15 @@ function loadProxies() {
     if (proxyList.length === 0) {
       throw new Error("No proxies found in proxy.txt");
     }
-    logger.log(
-      `{green-fg}Loaded ${proxyList.length} proxies from proxy.txt{/green-fg}`
+    logMessage(
+      null,
+      null,
+      `Loaded ${proxyList.length} proxies from proxy.txt`,
+      "success"
     );
     return true;
   } catch (error) {
-    logger.log(`{red-fg}Error loading proxy: ${error.message}{/red-fg}`);
+    logMessage(null, null, `Error loading proxy: ${error.message}`, "error");
     return false;
   }
 }
@@ -56,7 +71,7 @@ async function checkIP(index, total) {
       axiosConfig
     );
     const ip = response.data.ip;
-    logger.log(`{green-fg}IP Using: ${ip}{/green-fg}`);
+    logMessage(index, total, `IP Using: ${ip}`, "success");
     return { success: true, ip: ip };
   } catch (error) {
     logMessage(index, total, `Failed to get IP: ${error.message}`, "error");
@@ -86,6 +101,7 @@ async function getRandomProxy(index, total) {
     }
   }
 
+  logMessage(index, total, "Using default IP", "warning");
   axiosConfig = {};
   await checkIP(index, total);
   return null;
